@@ -1,2 +1,23 @@
+INSTALL
+-------
 There is no install; simply run 'window-marker'.
+
+
+DEPENDENCIES
+------------
+The current package of xpyb 1.2 is extremely out of date and will not
+work with window-marker. You'll need either xpyb-git (from the official
+freedesktop.org repository[1]) or xpyb-ng-git. Both should work.
+
+Installing xpyb-ng-git should be as simple as 'python2 setup.py install'.
+
+To install xpyb-git (from freedesktop.org), use something like this:
+
+  export PYTHON=/usr/bin/python2 # Only if python is a python3 binary
+  ./autogen.sh --prefix=/usr
+  make
+  make install
+
+[1] - http://cgit.freedesktop.org/xcb/xpyb/
+[2] - https://github.com/dequis/xpyb-ng
 
