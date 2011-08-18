@@ -57,7 +57,7 @@ def do_goto_window(letter):
         desktop = ewmh.get_current_desktop(conn, root).reply()
         visibles = ewmh.get_visible_desktops(conn, root).reply() or [desktop]
 
-        if wdesk not in visibles:
+        if wdesk is not None and wdesk not in visibles:
             ewmh.request_current_desktop_checked(conn, wdesk).check()
         ewmh.request_active_window_checked(conn, wid, source=1).check()
     except xcb.xproto.BadWindow:
