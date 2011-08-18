@@ -1,0 +1,24 @@
+usage: window-marker [-h] [-m KEYBINDING] [-g KEYBINDING]
+
+Vim-like marks for windows.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -m KEYBINDING, --mark KEYBINDING
+                        keybinding to add a mark (default: Mod4-m)
+  -g KEYBINDING, --goto KEYBINDING
+                        keybinding to goto a mark (default Mod4-apostrophe)
+
+Using window-marker is exactly like using marks in vim. Namely, by pressing
+the keybinding for "mark", window-marker then listens for one more letter
+(a-z) to be entered. Whichever letter is entered will now be associated with
+the active window. 
+
+If you now want to go back to that window (even if you're
+on a different desktop), simply press the keybinding for "goto" and then enter
+the letter you used to mark the window. 
+
+To set your own keybinding, please
+consult /usr/include/X11/keysymdef.h and the output of `xmodmap`. The `xev`
+program may also be useful.
+
