@@ -101,15 +101,27 @@ def cb_mapping_notify(e):
     global kbmap
     kbmap = keysym.get_keyboard_mapping(conn).reply()
 
+bound = False
 for key_str, fun_str in keybinds.iteritems():
     if fun_str not in globals():
         print >> sys.stderr, 'No such function %s for %s' % (fun_str, key_str)
         continue
 
     mods, kc = keysym.parse_keystring(conn, key_str, kbmap)
+    if kc is None:
+        print >> sys.stderr, 'Could not bind %s to %s; '\
+                             'this is probably a bug' % (key_str, fun_str)
+        continue
+
     keybindmap[(mods, kc)] = globals()[fun_str]
     if not keysym.grab_key(conn, root, mods, kc):
         print >> sys.stderr, 'Could not bind %s to %s' % (key_str, fun_str)
+    else:
+        bound = True
+
+if not bound:
+    print >> sys.stderr, 'Could not bind any keys, exiting...'
+    sys.exit(1)
 
 event.connect('MappingNotify', root, cb_mapping_notify)
 event.connect('KeyPress', root, cb_get_letter)
