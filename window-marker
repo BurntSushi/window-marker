@@ -92,7 +92,7 @@ for key_str, fun_str in keybinds.iteritems():
         continue
 
     fun = globals()[fun_str]
-    if not keysym.bind_global_key('KeyPress', xpybutil.root, key_str, fun):
+    if not keysym.bind_global_key('KeyPress', key_str, fun):
         print >> sys.stderr, 'Could not bind %s to %s' % (key_str, fun_str)
 
 event.main()
