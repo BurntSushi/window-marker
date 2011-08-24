@@ -5,7 +5,7 @@ import sys
 
 import xcb.xproto
 
-from xpybutil import conn, root
+import xpybutil
 import xpybutil.event as event
 import xpybutil.ewmh as ewmh
 import xpybutil.keysym as keysym
@@ -15,11 +15,9 @@ Using window-marker is exactly like using marks in vim. Namely, by pressing the
 keybinding for "mark", window-marker then listens for one more letter (a-z) to
 be entered. Whichever letter is entered will now be associated with the active
 window.
-
 If you now want to go back to that window (even if you're on a different
 desktop), simply press the keybinding for "goto" and then enter the letter you
 used to mark the window.
-
 To set your own keybinding, please consult /usr/include/X11/keysymdef.h
 and the output of `xmodmap`. The `xev` program may also be useful.
 '''
@@ -33,16 +31,13 @@ parser.add_argument('-g', '--goto', default='Mod4-apostrophe',
 args = parser.parse_args()
 
 keybinds = { args.mark: 'mark_window', args.goto: 'goto_window' }
-
-kbmap = keysym.get_keyboard_mapping(conn).reply()
 keybindmap = {}
 marked = {}
 grabbing = None
 
 def do_mark_window(letter):
-    awin = ewmh.get_active_window(conn, root).reply()
+    awin = ewmh.get_active_window().reply()
     if awin is not None:
-        sys.stdout.flush()
         marked[letter] = awin
 
 def do_goto_window(letter):
@@ -51,15 +46,14 @@ def do_goto_window(letter):
         return
 
     wid = marked[letter]
-
     try:
-        wdesk = ewmh.get_wm_desktop(conn, wid).reply()
-        desktop = ewmh.get_current_desktop(conn, root).reply()
-        visibles = ewmh.get_visible_desktops(conn, root).reply() or [desktop]
+        wdesk = ewmh.get_wm_desktop(wid).reply()
+        desktop = ewmh.get_current_desktop().reply()
+        visibles = ewmh.get_visible_desktops().reply() or [desktop]
 
         if wdesk is not None and wdesk not in visibles:
-            ewmh.request_current_desktop_checked(conn, wdesk).check()
-        ewmh.request_active_window_checked(conn, wid, source=1).check()
+            ewmh.request_current_desktop_checked(wdesk).check()
+        ewmh.request_active_window_checked(wid, source=1).check()
     except xcb.xproto.BadWindow:
         print >> sys.stderr, '%d no longer exists' % wid
 
@@ -72,60 +66,34 @@ def goto_window():
 def start_get_letter(cb):
     global grabbing
 
-    if keysym.grab_keyboard(conn, root).status == xcb.xproto.GrabStatus.Success:
+    GS = xcb.xproto.GrabStatus
+    if keysym.grab_keyboard(xpybutil.root).status == GS.Success:
         grabbing = cb
 
 def cb_get_letter(e):
     global grabbing
 
     if grabbing is not None:
-        keysym.ungrab_keyboard(conn)
-        sym = keysym.get_keysym(conn, kbmap, e.detail)
-        letter = keysym.get_keysym_string(conn, kbmap, sym)
+        keysym.ungrab_keyboard()
+        sym = keysym.get_keysym(e.detail)
+        letter = keysym.get_keysym_string(sym)
 
         if len(letter) == 1 and ord(letter) in range(ord('a'), ord('z') + 1):
             grabbing(letter.lower())
 
         grabbing = None
 
-def cb_key_press(e):
-    kc, mods = e.detail, e.state
-    for mod in keysym.TRIVIAL_MODS:
-        mods &= ~mod
+# This has to come first so it is called first in the event loop
+event.connect('KeyPress', xpybutil.root, cb_get_letter)
 
-    key = (mods, kc)
-    if key in keybindmap:
-        keybindmap[key]()
-
-def cb_mapping_notify(e):
-    global kbmap
-    kbmap = keysym.get_keyboard_mapping(conn).reply()
-
-bound = False
 for key_str, fun_str in keybinds.iteritems():
     if fun_str not in globals():
         print >> sys.stderr, 'No such function %s for %s' % (fun_str, key_str)
         continue
 
-    mods, kc = keysym.parse_keystring(conn, key_str, kbmap)
-    if kc is None:
-        print >> sys.stderr, 'Could not bind %s to %s; '\
-                             'this is probably a bug' % (key_str, fun_str)
-        continue
-
-    keybindmap[(mods, kc)] = globals()[fun_str]
-    if not keysym.grab_key(conn, root, mods, kc):
+    fun = globals()[fun_str]
+    if not keysym.bind_key('KeyPress', xpybutil.root, key_str, fun):
         print >> sys.stderr, 'Could not bind %s to %s' % (key_str, fun_str)
-    else:
-        bound = True
 
-if not bound:
-    print >> sys.stderr, 'Could not bind any keys, exiting...'
-    sys.exit(1)
-
-event.connect('MappingNotify', root, cb_mapping_notify)
-event.connect('KeyPress', root, cb_get_letter)
-event.connect('KeyPress', root, cb_key_press) # Must be after cb_get_letter
-
-event.event_loop(conn)
+event.main()
 
